@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Nebulas Note</title>
+    <link rel="stylesheet" href="css/index.css">
+    <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.js"></script>
+    <script src="libs/nebulas.js"></script>
+    <script>
+        "use strict";
+        const TESTNET_CHAIN_ID = 1001;
+        const TESTNET_API = "https://testnet.nebulas.io";
+        const TESTNET_CONTRACT_ADDR = "n1fzDcGcBnUVM9YhNCvznSmg2b4FEyKd4Ca";
+
+        const MAINNET_CHAIN_ID = 1;
+        const MAINNET_API = "https://mainnet.nebulas.io";
+        const MAINNET_CONTRACT_ADDR = "n1mTxxzZN3AFfs7YQvgZgqxww9YVqfkDL9B";
+
+        const AUTHOR_ADDR = "n1HwYPGLxNZJju8bVBm4tgXT2DZcYyLSZHo";
+
+        var API = TESTNET_API;
+        var CHAIN_ID = TESTNET_CHAIN_ID;
+        var CONTRACT_ADDR = TESTNET_CONTRACT_ADDR;
+
+        var mainnet_env = true;
+        if (mainnet_env) {
+            API = MAINNET_API;
+            CHAIN_ID = MAINNET_CHAIN_ID;
+            CONTRACT_ADDR = MAINNET_CONTRACT_ADDR;
+        }
+
+        var nebulas = require('nebulas');
+        var neb = new nebulas.Neb();
+        neb.setRequest(new nebulas.HttpRequest(API));
+
+        var Account = nebulas.Account;
+        var Transaction = neb.Transaction;
+        var api = neb.api;
+        var admin = neb.admin;
+
+        var sAccount;
+
+        var nonce = 0;
+
+        function unlockKeyStore() {
+            var file = document.getElementById('fileSelector').files[0];
+            var fileReader = new FileReader();
+            fileReader.onload = function (ev) {
+                var result = ev.target.result;
+                var parse = JSON.parse(result);
+
+                console.log(result);
+                var address = parse.address;
+                console.log((parse.address));
+                $("#address").text(address);
+
+                var account = new Account();
+                var password = document.getElementById('passphrase').value;
+                account.fromKey(parse, password, false);
+                sAccount = account;
+
+                api.getAccountState(address)
+                    .then(function (resp) {
+                        console.log(resp);
+                        $("#balance").text(resp.balance);
+                        nonce = parseInt(resp.nonce);
+                    })
+                    .catch(function (reason) {
+                        console.log(reason)
+                    });
+            };
+            fileReader.readAsText(file);
+        }
+
+        function publish() {
+            var title = $("#note-title").val();
+            var content = $("#note-content").val();
+
+            var tx = new nebulas.Transaction({
+                chainID: CHAIN_ID,
+                from: sAccount,
+                to: CONTRACT_ADDR,
+                value: 0,
+                nonce: ++nonce,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {function: 'publish', args: '["' + title + '","' + content + '"]'}
+            });
+
+            tx.signTransaction();
+
+            api.sendRawTransaction(tx.toProtoString())
+                .then(function (resp) {
+                    console.log(JSON.stringify(resp));
+                    $("#result-publish").text(JSON.stringify(resp));
+                })
+                .catch(function (err) {
+                    console.error(err);
+                    $("#result-publish").text(err);
+                });
+        }
+
+        function queryById() {
+            var id = $("#query-note-id").val();
+            api.call({
+                from: sAccount.getAddressString(),
+                to: CONTRACT_ADDR,
+                value: 0,
+                nonce: 1,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {function: 'query', args: '["' + id + '"]'}
+            })
+                .then(function (resp) {
+                    console.log("succ", resp);
+                })
+                .catch(function (error) {
+                    console.log(error);
+                })
+        }
+
+        function queryAll() {
+            api.call({
+                from: AUTHOR_ADDR,
+                to: CONTRACT_ADDR,
+                value: 0,
+                nonce: 1,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {function: 'queryAll', args: '[]'}
+            })
+                .then(function (resp) {
+                    $("#result-all").text(JSON.stringify(resp.result));
+                })
+                .catch(function (error) {
+                    console.log(error);
+                    $("#result-all").text(error);
+                })
+        }
+
+        queryAll();
+    </script>
+</head>
+<body background="img/background.png">
+
+<div class="logo">
+    <div class="name">Nebulas Note</div>
+    <div class="img">
+        <img src="img/logo.png" alt="">
+    </div>
+</div>
+<div>
+    <input type="file" id="fileSelector" name="file">
+    <input type="password" name="password" id="passphrase" value="nebulas2018"/>
+    <button type="button" onclick="unlockKeyStore()">unlock</button>
+</div>
+
+<hr/>
+<div class="result">
+    <p>Wallet Address</p>
+    <span id="address">address</span>
+    <div>
+        <p>balance</p>
+        <span id="balance"></span>
+    </div>
+</div>
+
+<hr/>
+
+<div>
+    <input type="text" id="note-title" name="title" value="title"/>
+
+    <div>
+        <textarea class="form-control" rows="8" id="note-content"></textarea>
+    </div>
+
+    <button onclick="publish()">publish</button>
+
+    <p class="result">
+        <span id="result-publish"></span>
+    </p>
+</div>
+
+<div class="result">
+    <button onclick="queryAll()">all</button>
+    <div id="result-all">
+    </div>
+</div>
+
+
+</body>
+</html>
