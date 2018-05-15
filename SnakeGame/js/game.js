@@ -1,3 +1,5 @@
+// origin source code here
+
 // var sn = [ 42, 41 ], dz = 43, fx = 1, n, ctx = document.getElementById("can").getContext("2d");
 // function draw(t, c) {
 //     ctx.fillStyle = c;
@@ -27,21 +29,37 @@ class SnakeGame {
         this.fx = 1;
         this.n = [];
         this.init();
-        document.onkeydown = function (e) {
-            // this.fx = this.sn[1] - this.sn[0] === (this.n = [-1, -20, 1, 20][(e || event).keyCode - 37] || this.fx) ? this.fx : this.n
-        };
+
+        this.timerId = -1;
         this.callback = callback;
     }
 
-
     init() {
-
         this.ctx.clearRect(0, 0, 400, 400);
+        let that = this;
+        document.onkeydown = function (e) {
+            that.fx = that.sn[1] - that.sn[0] === (that.n = [-1, -20, 1, 20][(e || event).keyCode - 37] || that.fx) ? that.fx : that.n
+        };
     }
 
     start() {
         this.callback.onGameStart();
         this.run();
+    }
+
+    resume() {
+        this.callback.onGameResume();
+        this.run();
+    }
+
+    pause() {
+        this.callback.onGamePause();
+        clearTimeout(this.timerId);
+        this.timerId = -1;
+    }
+
+    isRunning() {
+        return this.timerId > 0;
     }
 
     run() {
@@ -61,7 +79,10 @@ class SnakeGame {
             this.draw(this.sn.pop(), "Black");
         }
 
-        setTimeout(this.run, 200);
+        let that = this;
+        this.timerId = setTimeout(function () {
+            that.run();
+        }, 200);
     }
 
     draw(t, c) {
@@ -76,25 +97,20 @@ class SnakeGame {
 
 class GameCallback {
     onGameStart() {
+        console.log("start");
+    }
 
+    onGameResume() {
+        console.log("resume");
     }
 
     onGamePause() {
-
+        console.log("pause");
     }
 
     onGameOver(result) {
+        console.log("Game Over");
         console.log(result);
     }
 }
 
-function startGame() {
-    var context = document.getElementById("can").getContext("2d");
-    const snakeGame = new SnakeGame(context, new GameCallback());
-
-    snakeGame.start();
-}
-
-function pauseGame() {
-
-}
