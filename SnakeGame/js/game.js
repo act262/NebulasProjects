@@ -79,10 +79,7 @@ class SnakeGame {
             this.draw(this.sn.pop(), "Black");
         }
 
-        let that = this;
-        this.timerId = setTimeout(function () {
-            that.run();
-        }, 200);
+        this.timerId = setTimeout(this.run.bind(this), 200);
     }
 
     draw(t, c) {
