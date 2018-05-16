@@ -17,19 +17,25 @@
 
     <div>
 
-        <button id="controlGame" onclick="controlGame();">start</button>
-        <button id="reloadGame" onclick="reloadGame()">reload</button>
-
-        <button id="submitRecord" onclick="submit()">submit record</button>
+        <button id="controlGame" class="c_button" onclick="controlGame();">start</button>
+        <button id="reloadGame" class="c_button" onclick="reloadGame()">reload</button>
+        <button id="submitRecord" class="c_button" onclick="submit()">submit</button>
     </div>
 
     <div id="snake_map">
         <canvas id="can" width="400" height="400" style="background: Black"></canvas>
     </div>
+
+    <div id="result">
+
+    </div>
 </div>
 
 
 <script>
+    var CONTRACT_ADDR = "n1erTuU21Fge7trCatTAXDhPi5KAuxZ2dLn";
+    var debug = true;
+
     let gameCallback = new GameCallback();
     gameCallback.onGameStart = function () {
         document.getElementById("controlGame").innerText = "pause";
@@ -68,9 +74,8 @@
     var NebPay = require("nebpay");
     var nebPay = new NebPay();
     var serialNumber; //交易序列号
-    //点击按钮发起交易, 这里为调用智能合约的例子
     var options = {
-        goods: {        //商品描述
+        goods: {
             name: "SnakeGame",
             desc: "game record"
         },
@@ -79,17 +84,15 @@
             showQRCode: false,      //是否显示二维码信息
             // container: undefined    //指定显示二维码的canvas容器，不指定则生成一个默认canvas
         },
-        //callback 是交易查询服务器地址,
-        //callback: NebPay.config.mainnetUrl //在主网查询(默认值)
-        callback: NebPay.config.testnetUrl //在测试网查询
+        callback: debug ? NebPay.config.testnetUrl : NebPay.config.mainnetUrl
     }
 
     var intervalQuery; //定时查询交易结果
     function commitRecord(score) {
-        var to = "n1erTuU21Fge7trCatTAXDhPi5KAuxZ2dLn";   //Dapp的合约地址
+        var to = CONTRACT_ADDR;
         var value = "0";
-        var callFunction = "add" //调用的函数名称
-        var callArgs = '["user",' + score + ']'   //参数格式为参数数组的JSON字符串, 比如'["arg"]','["arg1","arg2]'
+        var callFunction = "add";
+        var callArgs = '["user",' + score + ']';
 
         //发送交易(发起智能合约调用)
         serialNumber = nebPay.call(to, value, callFunction, callArgs, options);
@@ -97,20 +100,20 @@
         //设置定时查询交易结果
         intervalQuery = setInterval(function () {
             funcIntervalQuery();
-        }, 10000); //建议查询频率10-15s,因为星云链出块时间为15s,并且查询服务器限制每分钟最多查询10次。
+        }, 10000);
     }
 
-    //查询交易结果. queryPayInfo返回的是一个Promise对象.
     function funcIntervalQuery() {
-        //queryPayInfo的options参数用来指定查询交易的服务器地址,(如果是主网可以忽略,因为默认服务器是在主网查询)
-        nebPay.queryPayInfo(serialNumber, options)   //search transaction result from server (result upload to server by app)
+        nebPay.queryPayInfo(serialNumber, options)
             .then(function (resp) {
-                console.log("tx result: " + resp)   //resp is a JSON string
+                console.log("tx result: " + resp)
                 var respObject = JSON.parse(resp)
                 //code==0交易发送成功, status==1交易已被打包上链
                 if (respObject.code === 0 && respObject.data.status === 1) {
                     //交易成功,处理后续任务....
                     clearInterval(intervalQuery)    //清除定时查询
+
+                    document.getElementById("result").innerHTML = "<p>提交游戏成功</p>";
                 }
             })
             .catch(function (err) {
